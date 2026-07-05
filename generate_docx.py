@@ -12,6 +12,14 @@ Generate file .docx jadwal sholat, meniru persis struktur file template
       (mengingatkan waktu shalat Jumat)
     * Tanggal Hijriah 13/14/15 -> sel H di-highlight DARK_BLUE
       (Ayyamul Bidh, puasa sunnah pertengahan bulan Hijriah)
+
+CATATAN FONT: "Segoe UI Black" adalah font proprietary Microsoft yang tidak
+ada di Linux (server GitHub Actions jalan di Ubuntu), jadi kalau dipaksa
+pakai nama itu, LibreOffice akan diam-diam mengganti ke font lain yang
+lebih lebar -> bikin teks di kolom HARI ("Selasa", "Sabtu") jadi wrap ke 2
+baris dan tabel keliatan dempet/tidak rapi. Sebagai gantinya dipakai
+"Liberation Sans" (bold) - metric-compatible dengan Arial, sudah pasti ada
+di Linux manapun, dan tetap terlihat tebal/solid seperti yang diminta.
 """
 
 from docx import Document
@@ -23,10 +31,14 @@ from docx.oxml import OxmlElement
 
 HEADER_FILL = "5F497A"
 DATA_FILL = "B6DDE8"
-FONT_NAME = "Segoe UI Black"
+FONT_NAME = "Liberation Sans"
+WHITE = "FFFFFF"
 
-# Lebar kolom persis seperti template (dalam satuan DXA, 1440 dxa = 1 inch)
-COLUMN_WIDTHS_DXA = [475, 577, 1073, 981, 1096, 1015, 923, 1039, 784, 969, 1085]
+# Lebar kolom (DXA). Dibanding template asli, kolom HARI dilebarkan supaya
+# "Selasa"/"Sabtu" tidak wrap ke 2 baris dengan font pengganti di atas;
+# selisihnya diambil sedikit-sedikit dari 8 kolom waktu (masih cukup lebar
+# untuk teks jam "05:54" yang pendek).
+COLUMN_WIDTHS_DXA = [475, 577, 1500, 928, 1043, 962, 870, 986, 731, 916, 1032]
 HEADERS = ["M", "H", "HARI", "IMSAK", "SUBUH", "SYURUQ", "DUHA", "ZUHUR", "ASAR", "MAGRIB", "ISYA"]
 
 COL_IDX = {name: i for i, name in enumerate(HEADERS)}
@@ -55,6 +67,20 @@ def _set_table_borders(table):
     tblPr.append(borders)
 
 
+def _set_table_cell_margins(table, margin_dxa: int = 20):
+    """Sama seperti template asli: margin sel dikecilkan supaya tidak ada
+    ruang kosong berlebih yang bikin teks gampang wrap / tabel keliatan boros."""
+    tbl = table._tbl
+    tblPr = tbl.tblPr
+    mar = OxmlElement("w:tblCellMar")
+    for edge in ("top", "left", "bottom", "right"):
+        el = OxmlElement(f"w:{edge}")
+        el.set(qn("w:w"), str(margin_dxa))
+        el.set(qn("w:type"), "dxa")
+        mar.append(el)
+    tblPr.append(mar)
+
+
 def _set_column_widths(table):
     table.autofit = False
     for row in table.rows:
@@ -62,18 +88,24 @@ def _set_column_widths(table):
             cell.width = Cm(COLUMN_WIDTHS_DXA[idx] / 566.9)  # dxa -> cm (1 cm = 566.9 dxa)
 
 
-def _write_cell(cell, text, *, bold=False, color=None, highlight=None, size=11):
+def _write_cell(cell, text, *, color=None, highlight=None, size=11):
+    """Semua isi sel selalu BOLD (sesuai permintaan). Kalau ada highlight
+    (DARK_BLUE/GREEN), warna teks otomatis dipaksa putih supaya kebaca."""
     cell.text = ""
     p = cell.paragraphs[0]
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(0)
     run = p.add_run(str(text))
     run.font.name = FONT_NAME
     run.font.size = Pt(size)
-    run.font.bold = bold
-    if color:
-        run.font.color.rgb = RGBColor.from_string(color)
+    run.font.bold = True
+
     if highlight:
         run.font.highlight_color = highlight
+        run.font.color.rgb = RGBColor.from_string(WHITE)
+    elif color:
+        run.font.color.rgb = RGBColor.from_string(color)
 
 
 def build_document(data: dict, hijriah_range_label: str) -> Document:
@@ -103,6 +135,7 @@ def build_document(data: dict, hijriah_range_label: str) -> Document:
     title = doc.add_paragraph()
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = title.add_run(f"Jadwal Sholat {data['kabkota']}")
+    run.font.name = FONT_NAME
     run.font.size = Pt(18)
     run.font.bold = True
 
@@ -110,14 +143,22 @@ def build_document(data: dict, hijriah_range_label: str) -> Document:
     sub = doc.add_paragraph()
     sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r1 = sub.add_run(f"{data['bulan_nama'].upper()} {data['tahun']} (")
+    r1.font.name = FONT_NAME
     r1.font.size = Pt(13)
+    r1.font.bold = True
     r2 = sub.add_run(hijriah_range_label)
+    r2.font.name = FONT_NAME
     r2.font.size = Pt(10)
+    r2.font.bold = True
     r2.font.underline = True
     r3 = sub.add_run(")   ")
+    r3.font.name = FONT_NAME
     r3.font.size = Pt(13)
+    r3.font.bold = True
     r4 = sub.add_run("Sumber: bimasislam.kemenag.go.id")
+    r4.font.name = FONT_NAME
     r4.font.size = Pt(9)
+    r4.font.bold = True
     r4.italic = True
 
     doc.add_paragraph()
@@ -127,12 +168,13 @@ def build_document(data: dict, hijriah_range_label: str) -> Document:
     table = doc.add_table(rows=n_rows, cols=len(HEADERS))
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     _set_table_borders(table)
+    _set_table_cell_margins(table)
 
     # Header
     for c, label in enumerate(HEADERS):
         cell = table.rows[0].cells[c]
         _set_cell_shading(cell, HEADER_FILL)
-        _write_cell(cell, label, bold=True, color="FFFFFF", size=11)
+        _write_cell(cell, label, color="FFFFFF", size=11)
 
     # Data
     for r, item in enumerate(data["jadwal"], start=1):
@@ -172,7 +214,7 @@ def build_document(data: dict, hijriah_range_label: str) -> Document:
             if is_ayyamul_bidh and col_name == "H":
                 highlight = WD_COLOR_INDEX.DARK_BLUE
 
-            _write_cell(cell, row_values[col_name], bold=(col_name in ("M", "HARI")), highlight=highlight)
+            _write_cell(cell, row_values[col_name], highlight=highlight)
 
     _set_column_widths(table)
     return doc
