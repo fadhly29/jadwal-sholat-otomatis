@@ -29,11 +29,11 @@ pip install -r requirements.txt
 sudo apt install libreoffice poppler-utils
 # (di Mac: brew install libreoffice poppler)
 
-# opsional tapi disarankan: install font Archivo Black biar tampilan lokal sama
+# opsional tapi disarankan: install font Selawik biar tampilan lokal sama
 # persis dengan hasil GitHub Actions (lihat catatan soal font di bawah)
 mkdir -p ~/.fonts
-curl -sL -o ~/.fonts/ArchivoBlack-Regular.ttf \
-  "https://raw.githubusercontent.com/google/fonts/main/ofl/archivoblack/ArchivoBlack-Regular.ttf"
+curl -sL -o ~/.fonts/Selawik-Bold.ttf \
+  "https://raw.githubusercontent.com/fontfen/selawik/master/Selawik-Bold.ttf"
 fc-cache -f ~/.fonts
 
 # opsional, sekali saja: pastikan nama kabkota di config.py cocok dengan API
@@ -130,17 +130,17 @@ penulisan `KABKOTA` persis sama dengan yang dikenali API.
 
 ## Catatan
 
-- **Soal font:** kamu minta "Segoe UI Black", tapi itu font proprietary bawaan
-  Windows yang tidak ada di server Linux (GitHub Actions jalan di Ubuntu) —
-  kalau dipaksa pakai nama itu, hasilnya tetap diganti diam-diam oleh LibreOffice
-  ke font lain yang lebih lebar, yang justru menyebabkan tabelnya berantakan
-  sebelumnya. Sebagai gantinya dipakai **Archivo Black** — font gratis (Google
-  Fonts, lisensi OFL) yang memang didesain di berat "Black" yang sama tebalnya,
-  jadi secara visual hasilnya setara, dan dijamin selalu ada karena diinstall
-  otomatis lewat workflow. Kalau kamu tetap mau coba "Segoe UI Black" yang asli,
-  ganti `FONT_NAME` di `generate_docx.py` — tapi hasilnya cuma akan benar kalau
-  dibuka di Word di Windows yang punya font itu terinstall, bukan di JPG hasil
-  GitHub Actions.
+- **Soal font:** kamu minta "Segoe UI Black"/"Segoe UI Bold", tapi Segoe UI
+  itu font proprietary bawaan Windows yang tidak ada di server Linux (GitHub
+  Actions jalan di Ubuntu). Sebagai gantinya dipakai **Selawik** — font
+  pengganti Segoe UI yang dibuat resmi oleh Microsoft sendiri (open source,
+  lisensi OFL, metric-compatible dengan Segoe UI, jadi proporsinya memang
+  didesain semirip mungkin). Selawik cuma tersedia 5 ketebalan (Light,
+  Semilight, Regular, Semibold, Bold) — **tidak ada varian "Black"** — jadi
+  **Bold** yang dipakai di sini adalah yang paling tebal yang ada. Font-nya
+  diinstall otomatis lewat workflow. Nama family font-nya di dalam file cuma
+  "Selawik" (bukan "Selawik Bold"); ketebalan Bold-nya otomatis kepakai
+  karena semua teks di kode ini sudah diset `bold=True`.
 - **Tanggal Hijriah** dihitung otomatis pakai library `hijridate` (metode hisab
   Umm al-Qura), sudah dites cocok dengan tanggal Kemenag untuk contoh
   1 Juni 2026 = 15 Dzulhijjah 1447H dan 30 Juni 2026 = 15 Muharram 1448H.

@@ -1,14 +1,16 @@
 """
 Generate file .docx jadwal sholat.
 
-CATATAN FONT: Diminta font "Segoe UI Black", tapi itu font proprietary Microsoft
-yang TIDAK ADA di Linux (runner GitHub Actions jalan di Ubuntu) - kalau nama itu
-dipaksa dipakai, LibreOffice akan diam-diam mengganti ke font fallback acak yang
-lebih lebar, dan itu penyebab tabel jadi wrap/berantakan sebelumnya. Sebagai
-gantinya dipakai "Archivo Black" - font gratis (Google Fonts, lisensi OFL) yang
-memang didesain di berat "Black" (setebal Segoe UI Black), jadi hasilnya secara
-visual setara, dan dijamin selalu tersedia karena diinstall langsung di workflow
-GitHub Actions (lihat langkah "Install font Archivo Black" di generate-jadwal.yml).
+CATATAN FONT: Diminta font "Segoe UI Black"/"Segoe UI Bold", tapi Segoe UI
+adalah font proprietary Microsoft yang TIDAK ADA di Linux (runner GitHub
+Actions jalan di Ubuntu). Sebagai gantinya dipakai **Selawik** - font
+pengganti Segoe UI yang dibuat resmi oleh Microsoft sendiri (open source,
+lisensi OFL, metric-compatible dengan Segoe UI), jadi proporsinya memang
+didesain semirip mungkin. Selawik cuma tersedia 5 ketebalan (Light,
+Semilight, Regular, Semibold, Bold) - TIDAK ada varian "Black", jadi
+**Bold** yang dipakai di sini adalah yang paling tebal yang tersedia.
+Font-nya diinstall otomatis di workflow GitHub Actions (lihat langkah
+"Install font Selawik" di generate-jadwal.yml).
 
 Isi tabel:
 - Header tabel: latar ungu (5F497A), teks putih, bold
@@ -22,9 +24,10 @@ Isi tabel:
     * Tanggal Hijriah 13/14/15 -> sel H, latar DARK_BLUE (Ayyamul Bidh)
 - Baris Ahad: teks "Ahad" di sel HARI diberi warna MERAH (hari libur/weekend),
   tanpa latar highlight.
-- Semua kolom di-"autofit": lebar kolom otomatis menyesuaikan isi terlebar di
-  kolom itu, jadi kolom dengan isi pendek (M, H, DUHA, ASAR, ISYA) otomatis
-  menyempit, dan tidak ada teks yang terpaksa turun ke baris ke-2.
+- Lebar kolom fixed (lihat COLUMN_WIDTHS_CM) - sudah dikalibrasi khusus untuk
+  lebar huruf Selawik Bold, jangan diturunkan di bawah nilai ini kecuali sudah
+  dites ulang render-nya (M/H minimal ~0.6-0.7cm, di bawah itu angka 2 digit
+  seperti "29"/"30" bisa wrap ke baris ke-2 dan bikin tabel kepotong halaman).
 """
 
 from docx import Document
@@ -36,7 +39,7 @@ from docx.oxml import OxmlElement
 
 HEADER_FILL = "5F497A"
 DATA_FILL = "B6DDE8"
-FONT_NAME = "Archivo Black"
+FONT_NAME = "Selawik"
 WHITE = "FFFFFF"
 RED = "C00000"
 

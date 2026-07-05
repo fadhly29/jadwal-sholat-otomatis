@@ -31,11 +31,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libreoffice poppler-utils
 
-      - name: Install font Archivo Black (font tebal/"black" pengganti Segoe UI Black)
+      - name: Install font Selawik (pengganti resmi Segoe UI dari Microsoft, varian Bold)
         run: |
           mkdir -p ~/.fonts
-          curl -sL -o ~/.fonts/ArchivoBlack-Regular.ttf \
-            "https://raw.githubusercontent.com/google/fonts/main/ofl/archivoblack/ArchivoBlack-Regular.ttf"
+          curl -sL -o ~/.fonts/Selawik-Bold.ttf \
+            "https://raw.githubusercontent.com/fontfen/selawik/master/Selawik-Bold.ttf"
           fc-cache -f ~/.fonts
 
       - name: Install dependencies
