@@ -48,8 +48,8 @@ COL_IDX = {name: i for i, name in enumerate(HEADERS)}
 # 1 baris. Kolom jam disesuaikan ke panjang nama headernya (SYURUQ/MAGRIB
 # 6 huruf perlu paling lebar, DUHA/ASAR/ISYA 4 huruf paling sempit).
 COLUMN_WIDTHS_CM = {
-    "M": 1.05, "H": 1.05, "HARI": 2.55,
-    "IMSAK": 1.85, "SUBUH": 1.85, "SYURUQ": 2.05, "DUHA": 1.55,
+    "M": 0.5, "H": 0.5, "HARI": 2.55,
+    "IMSAK": 1.85, "SUBUH": 1.85, "SYURUQ": 2.15, "DUHA": 1.55,
     "ZUHUR": 1.85, "ASAR": 1.55, "MAGRIB": 2.05, "ISYA": 1.55,
 }
 
@@ -152,8 +152,11 @@ def build_document(data: dict, hijriah_range_label: str) -> Document:
     # dipotong otomatis nanti di convert_to_image.py (auto-crop), jadi tidak
     # perlu kalkulasi tinggi per baris yang rapuh (rentan meleset kalau font
     # fallback bikin teks wrap 2 baris di sel HARI).
-    section.page_width = Cm(21)  # lebar A4
-    section.page_height = Cm(50)  # cukup untuk 31 baris + judul, masih di bawah batas docx (~55.8cm)
+    # Kertas A4 standar. Sudah dites: dengan font Archivo Black + lebar kolom
+    # yang dikalibrasi (lihat COLUMN_WIDTHS_CM), tabel 28-31 baris selalu muat
+    # rapi dalam 1 halaman A4 tanpa perlu ukuran kertas custom.
+    section.page_width = Cm(21)
+    section.page_height = Cm(29.7)
 
     # --- Judul ---
     title = doc.add_paragraph()
