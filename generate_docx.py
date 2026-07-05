@@ -1,25 +1,30 @@
 """
-Generate file .docx jadwal sholat, meniru persis struktur file template
-"jadwal-sholat-juni.docx" yang sudah dibedah XML-nya:
+Generate file .docx jadwal sholat.
 
-- Header tabel: latar ungu (5F497A), teks putih, bold, font Segoe UI Black
-- Baris data: latar biru muda (B6DDE8) merata di semua sel
+CATATAN FONT: Diminta font "Segoe UI Black", tapi itu font proprietary Microsoft
+yang TIDAK ADA di Linux (runner GitHub Actions jalan di Ubuntu) - kalau nama itu
+dipaksa dipakai, LibreOffice akan diam-diam mengganti ke font fallback acak yang
+lebih lebar, dan itu penyebab tabel jadi wrap/berantakan sebelumnya. Sebagai
+gantinya dipakai "Archivo Black" - font gratis (Google Fonts, lisensi OFL) yang
+memang didesain di berat "Black" (setebal Segoe UI Black), jadi hasilnya secara
+visual setara, dan dijamin selalu tersedia karena diinstall langsung di workflow
+GitHub Actions (lihat langkah "Install font Archivo Black" di generate-jadwal.yml).
+
+Isi tabel:
+- Header tabel: latar ungu (5F497A), teks putih, bold
+- Baris data: latar biru muda (B6DDE8) merata di semua sel, teks bold
 - Border tabel: garis tunggal hitam 0.75pt di semua sisi
-- Highlight khusus (di atas latar biru muda):
-    * Baris Senin & Kamis  -> sel HARI + sel MAGRIB di-highlight DARK_BLUE
+- Highlight (di atas latar biru muda), teks jadi PUTIH biar kebaca jelas:
+    * Baris Senin & Kamis  -> sel HARI + sel MAGRIB, latar DARK_BLUE
       (mengikuti sunnah puasa Senin-Kamis, highlight waktu berbuka)
-    * Baris Jumat          -> sel HARI + sel ZUHUR di-highlight GREEN
+    * Baris Jumat          -> sel HARI + sel ZUHUR, latar GREEN
       (mengingatkan waktu shalat Jumat)
-    * Tanggal Hijriah 13/14/15 -> sel H di-highlight DARK_BLUE
-      (Ayyamul Bidh, puasa sunnah pertengahan bulan Hijriah)
-
-CATATAN FONT: "Segoe UI Black" adalah font proprietary Microsoft yang tidak
-ada di Linux (server GitHub Actions jalan di Ubuntu), jadi kalau dipaksa
-pakai nama itu, LibreOffice akan diam-diam mengganti ke font lain yang
-lebih lebar -> bikin teks di kolom HARI ("Selasa", "Sabtu") jadi wrap ke 2
-baris dan tabel keliatan dempet/tidak rapi. Sebagai gantinya dipakai
-"Liberation Sans" (bold) - metric-compatible dengan Arial, sudah pasti ada
-di Linux manapun, dan tetap terlihat tebal/solid seperti yang diminta.
+    * Tanggal Hijriah 13/14/15 -> sel H, latar DARK_BLUE (Ayyamul Bidh)
+- Baris Ahad: teks "Ahad" di sel HARI diberi warna MERAH (hari libur/weekend),
+  tanpa latar highlight.
+- Semua kolom di-"autofit": lebar kolom otomatis menyesuaikan isi terlebar di
+  kolom itu, jadi kolom dengan isi pendek (M, H, DUHA, ASAR, ISYA) otomatis
+  menyempit, dan tidak ada teks yang terpaksa turun ke baris ke-2.
 """
 
 from docx import Document
@@ -31,17 +36,22 @@ from docx.oxml import OxmlElement
 
 HEADER_FILL = "5F497A"
 DATA_FILL = "B6DDE8"
-FONT_NAME = "Liberation Sans"
+FONT_NAME = "Archivo Black"
 WHITE = "FFFFFF"
+RED = "C00000"
 
-# Lebar kolom (DXA). Dibanding template asli, kolom HARI dilebarkan supaya
-# "Selasa"/"Sabtu" tidak wrap ke 2 baris dengan font pengganti di atas;
-# selisihnya diambil sedikit-sedikit dari 8 kolom waktu (masih cukup lebar
-# untuk teks jam "05:54" yang pendek).
-COLUMN_WIDTHS_DXA = [475, 577, 1500, 928, 1043, 962, 870, 986, 731, 916, 1032]
 HEADERS = ["M", "H", "HARI", "IMSAK", "SUBUH", "SYURUQ", "DUHA", "ZUHUR", "ASAR", "MAGRIB", "ISYA"]
-
 COL_IDX = {name: i for i, name in enumerate(HEADERS)}
+
+# Lebar tiap kolom (cm) - disesuaikan ke panjang isi terlebarnya sendiri:
+# M/H cuma angka pendek -> sempit. HARI harus muat "Selasa"/"Sabtu" dalam
+# 1 baris. Kolom jam disesuaikan ke panjang nama headernya (SYURUQ/MAGRIB
+# 6 huruf perlu paling lebar, DUHA/ASAR/ISYA 4 huruf paling sempit).
+COLUMN_WIDTHS_CM = {
+    "M": 1.05, "H": 1.05, "HARI": 2.55,
+    "IMSAK": 1.85, "SUBUH": 1.85, "SYURUQ": 2.05, "DUHA": 1.55,
+    "ZUHUR": 1.85, "ASAR": 1.55, "MAGRIB": 2.05, "ISYA": 1.55,
+}
 
 
 def _set_cell_shading(cell, fill_hex: str):
@@ -54,8 +64,7 @@ def _set_cell_shading(cell, fill_hex: str):
 
 
 def _set_table_borders(table):
-    tbl = table._tbl
-    tblPr = tbl.tblPr
+    tblPr = table._tbl.tblPr
     borders = OxmlElement("w:tblBorders")
     for edge in ("top", "left", "bottom", "right", "insideH", "insideV"):
         el = OxmlElement(f"w:{edge}")
@@ -68,10 +77,9 @@ def _set_table_borders(table):
 
 
 def _set_table_cell_margins(table, margin_dxa: int = 20):
-    """Sama seperti template asli: margin sel dikecilkan supaya tidak ada
-    ruang kosong berlebih yang bikin teks gampang wrap / tabel keliatan boros."""
-    tbl = table._tbl
-    tblPr = tbl.tblPr
+    """Margin sel dikecilkan supaya tidak ada ruang kosong berlebih yang
+    bikin teks gampang wrap / tabel keliatan boros tempat."""
+    tblPr = table._tbl.tblPr
     mar = OxmlElement("w:tblCellMar")
     for edge in ("top", "left", "bottom", "right"):
         el = OxmlElement(f"w:{edge}")
@@ -81,16 +89,32 @@ def _set_table_cell_margins(table, margin_dxa: int = 20):
     tblPr.append(mar)
 
 
-def _set_column_widths(table):
+def _disable_autofit(table):
+    """Paksa lebar kolom fixed sesuai COLUMN_WIDTHS_CM (bukan autofit Word),
+    supaya konsisten persis sama di semua penampil/converter."""
     table.autofit = False
+    tblPr = table._tbl.tblPr
+    layout = OxmlElement("w:tblLayout")
+    layout.set(qn("w:type"), "fixed")
+    tblPr.append(layout)
+
+    total_cm = sum(COLUMN_WIDTHS_CM[h] for h in HEADERS)
+    tblW = tblPr.find(qn("w:tblW"))
+    if tblW is None:
+        tblW = OxmlElement("w:tblW")
+        tblPr.append(tblW)
+    tblW.set(qn("w:type"), "dxa")
+    tblW.set(qn("w:w"), str(int(total_cm * 566.9)))
+
     for row in table.rows:
-        for idx, cell in enumerate(row.cells):
-            cell.width = Cm(COLUMN_WIDTHS_DXA[idx] / 566.9)  # dxa -> cm (1 cm = 566.9 dxa)
+        for idx, header in enumerate(HEADERS):
+            row.cells[idx].width = Cm(COLUMN_WIDTHS_CM[header])
 
 
 def _write_cell(cell, text, *, color=None, highlight=None, size=11):
-    """Semua isi sel selalu BOLD (sesuai permintaan). Kalau ada highlight
-    (DARK_BLUE/GREEN), warna teks otomatis dipaksa putih supaya kebaca."""
+    """Semua isi sel selalu BOLD dan pakai font Archivo Black (sesuai
+    permintaan tebal/black). Kalau ada highlight (DARK_BLUE/GREEN), warna
+    teks otomatis dipaksa putih supaya kontras & kebaca jelas."""
     cell.text = ""
     p = cell.paragraphs[0]
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -174,7 +198,7 @@ def build_document(data: dict, hijriah_range_label: str) -> Document:
     for c, label in enumerate(HEADERS):
         cell = table.rows[0].cells[c]
         _set_cell_shading(cell, HEADER_FILL)
-        _write_cell(cell, label, color="FFFFFF", size=11)
+        _write_cell(cell, label, color="FFFFFF", size=10)
 
     # Data
     for r, item in enumerate(data["jadwal"], start=1):
@@ -207,14 +231,17 @@ def build_document(data: dict, hijriah_range_label: str) -> Document:
             _set_cell_shading(cell, DATA_FILL)
 
             highlight = None
+            color = None
             if is_senin_kamis and col_name in ("HARI", "MAGRIB"):
                 highlight = WD_COLOR_INDEX.DARK_BLUE
             if is_jumat and col_name in ("HARI", "ZUHUR"):
                 highlight = WD_COLOR_INDEX.GREEN
             if is_ayyamul_bidh and col_name == "H":
                 highlight = WD_COLOR_INDEX.DARK_BLUE
+            if hari == "Ahad" and col_name == "HARI" and not highlight:
+                color = RED
 
-            _write_cell(cell, row_values[col_name], highlight=highlight)
+            _write_cell(cell, row_values[col_name], color=color, highlight=highlight, size=10.5)
 
-    _set_column_widths(table)
+    _disable_autofit(table)
     return doc
