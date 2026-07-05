@@ -48,9 +48,9 @@ COL_IDX = {name: i for i, name in enumerate(HEADERS)}
 # 1 baris. Kolom jam disesuaikan ke panjang nama headernya (SYURUQ/MAGRIB
 # 6 huruf perlu paling lebar, DUHA/ASAR/ISYA 4 huruf paling sempit).
 COLUMN_WIDTHS_CM = {
-    "M": 0.5, "H": 0.5, "HARI": 2.55,
-    "IMSAK": 1.85, "SUBUH": 1.85, "SYURUQ": 2.15, "DUHA": 1.55,
-    "ZUHUR": 1.85, "ASAR": 1.55, "MAGRIB": 2.05, "ISYA": 1.55,
+    "M": 0.7, "H": 0.7, "HARI": 2.5,
+    "IMSAK": 1.85, "SUBUH": 1.85, "SYURUQ": 2.0, "DUHA": 1.55,
+    "ZUHUR": 1.85, "ASAR": 1.55, "MAGRIB": 2.0, "ISYA": 1.55,
 }
 
 
@@ -106,6 +106,20 @@ def _disable_autofit(table):
     tblW.set(qn("w:type"), "dxa")
     tblW.set(qn("w:w"), str(int(total_cm * 566.9)))
 
+    # PENTING: lebar kolom yang benar-benar dirender Word/LibreOffice diambil
+    # dari <w:tblGrid><w:gridCol .../></w:tblGrid>, BUKAN dari tcW per sel di
+    # bawah ini. tblGrid dibuat otomatis oleh python-docx waktu add_table()
+    # dengan lebar rata sama semua kolom, dan kalau tidak di-update manual,
+    # perubahan di COLUMN_WIDTHS_CM tidak akan terlihat di hasil render sama
+    # sekali (ini bug yang sempat kejadian). Jadi tblGrid-nya di-update di sini:
+    tblGrid = table._tbl.find(qn("w:tblGrid"))
+    grid_cols = tblGrid.findall(qn("w:gridCol"))
+    for idx, header in enumerate(HEADERS):
+        width_dxa = int(COLUMN_WIDTHS_CM[header] * 566.9)
+        grid_cols[idx].set(qn("w:w"), str(width_dxa))
+
+    # tcW per sel tetap diset juga (beberapa versi Word membaca ini sebagai
+    # cadangan/override per baris kalau tblGrid tidak dipatuhi penuh)
     for row in table.rows:
         for idx, header in enumerate(HEADERS):
             row.cells[idx].width = Cm(COLUMN_WIDTHS_CM[header])
